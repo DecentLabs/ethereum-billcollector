@@ -1,16 +1,18 @@
 pragma solidity ^0.4.11;
 import "./Owned.sol";
 
-contract Subscriber is owned { // TODO: make it mortal
+contract SubscriberWallet is owned { // TODO: make it mortal
     int8 constant public ERR_NOSUBSCRIPTION = -1;
     int8 constant public ERR_ALREADYCHARGED = -2;
     int8 constant public ERR_INSUFFICIENT_BALANCE = -3;
-    int8 constant public ERR_NO_ACTIVESUBSCRIPTION = -1;
+    int8 constant public ERR_NO_ACTIVESUBSCRIPTION = -4;
+    int8 constant public ERR_INVALID_FREQUENCY = -5;
     int8 constant public SUCCESS = 1;
     uint constant public MAX_FREQUENCY = 3650;
+    uint constant public MIN_FREQUENCY = 1;
 
     struct Subscription {
-        address provider; // ethereum address of content/service provider
+        address provider; // contract address of provider
         uint idx; // index in subscriptions array
         uint frequency ; // in seconds TODO: rename to period
         uint amount; // eth chargable
@@ -22,16 +24,17 @@ contract Subscriber is owned { // TODO: make it mortal
     address[] public subscriptions;
     mapping(address => Subscription) public m_subscriptions;
 
-
     function () payable { // required to be able to top
     }
 
     event e_subscription(address indexed provider, address subscriber, uint frequency, uint amount);
-    function subscribe(address provider, uint frequency, uint amount) payable onlyOwner {
-        require(this.balance + msg.value >= amount);
-        require(frequency < MAX_FREQUENCY);
-        // TODO: add minumum frequency
-        require(frequency > 0);
+    function subscribe(address provider, uint frequency, uint amount) onlyOwner returns (int8 result) {
+        if(this.balance < amount) {
+            return ERR_INSUFFICIENT_BALANCE;
+        }
+        if(frequency > MAX_FREQUENCY || frequency < MIN_FREQUENCY) {
+            return ERR_INVALID_FREQUENCY;
+        }
 
         uint idx;
         if(m_subscriptions[provider].frequency > 0) {
@@ -46,6 +49,7 @@ contract Subscriber is owned { // TODO: make it mortal
         }
         provider.transfer(amount); //  subscriber is added to provider contract in their default (fallback) function
         e_subscription(provider, this, frequency, amount);
+        return SUCCESS;
     }
 
     function getTime() constant returns (uint) {
