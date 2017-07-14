@@ -5,7 +5,10 @@
   "scripts": {
     "lint": "eslint ./",
     "build": "webpack",
-    "dev": "webpack-dev-server"
+    "dev": "NODE_ENV=development webpack-dev-server --progress --colors --content-base build/  --watch --hot --inline --config  webpack.config.js",
+    "testrpc:start": "./runtestrpc.sh",
+    "testrpc:install": "npm install -g ethereumjs-testrpc",
+    "truffle:install": "npm install -g truffle"
   },
   "author": "Douglas von Kohorn",
   "license": "MIT",
