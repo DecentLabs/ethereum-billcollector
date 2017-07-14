@@ -4,6 +4,7 @@ import "./Owned.sol";
 contract Subscriber is owned { // TODO: make it mortal
     int8 constant public ERR_NOSUBSCRIPTION = -1;
     int8 constant public ERR_ALREADYCHARGED = -2;
+    int8 constant public ERR_INSUFFICIENT_BALANCE = -3;
     int8 constant public ERR_NO_ACTIVESUBSCRIPTION = -1;
     int8 constant public SUCCESS = 1;
     uint constant public MAX_FREQUENCY = 3650;
@@ -63,10 +64,12 @@ contract Subscriber is owned { // TODO: make it mortal
         if( now < m_subscriptions[provider].lastCharged + m_subscriptions[provider].frequency) {
             return ERR_ALREADYCHARGED;
         }
+        if( this.balance <= m_subscriptions[provider].amount) {
+            return ERR_INSUFFICIENT_BALANCE;
+        }
         m_subscriptions[provider].lastCharged = m_subscriptions[provider].lastCharged
                         + m_subscriptions[provider].frequency;
         m_subscriptions[provider].chargeCount += 1;
-        // TODO: return error code if not enough balance to cover
         provider.transfer(m_subscriptions[provider].amount);
         // TODO: charge fee
         e_charged(provider, this, m_subscriptions[provider].amount);
