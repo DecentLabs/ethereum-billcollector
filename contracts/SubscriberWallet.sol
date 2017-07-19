@@ -1,5 +1,6 @@
 pragma solidity ^0.4.11;
 import "./Owned.sol";
+import "./Rates.sol";
 
 contract SubscriberWallet is owned { // TODO: make it mortal
     int8 constant public ERR_NOSUBSCRIPTION = -1;
@@ -15,7 +16,7 @@ contract SubscriberWallet is owned { // TODO: make it mortal
         address provider; // contract address of provider
         uint idx; // index in subscriptions array
         uint frequency ; // in seconds TODO: rename to period
-        uint amount; // eth chargable
+        uint amount; // USD chargable
         uint lastCharged; // unix timestamp when the last charge has happened
         uint chargeCount;
         bool isActive;
@@ -23,13 +24,22 @@ contract SubscriberWallet is owned { // TODO: make it mortal
 
     address[] public subscriptions;
     mapping(address => Subscription) public m_subscriptions;
+    Rates rates;
 
     function () payable { // required to be able to top
     }
 
+    function SubscriberWallet (address ratesAddress) {
+        rates = Rates(ratesAddress);
+    }
+
+    function getBalanceInUsd() constant returns (uint usdBalance) {
+        return rates.convertWeiToUsd(this.balance);
+    }
+
     event e_subscription(address indexed provider, address subscriber, uint frequency, uint amount);
     function subscribe(address provider, uint frequency, uint amount) onlyOwner returns (int8 result) {
-        if(this.balance < amount) {
+        if(this.balance < rates.convertUsdToWei(amount)) {
             return ERR_INSUFFICIENT_BALANCE;
         }
         if(frequency > MAX_FREQUENCY || frequency < MIN_FREQUENCY) {
@@ -47,7 +57,7 @@ contract SubscriberWallet is owned { // TODO: make it mortal
             idx = subscriptions.push(provider) - 1;
             m_subscriptions[provider].idx = idx;
         }
-        provider.transfer(amount); //  subscriber is added to provider contract in their default (fallback) function
+        provider.transfer(amount); // TODO: call charge instead so fee deducted + charge event emited
         e_subscription(provider, this, frequency, amount);
         return SUCCESS;
     }
@@ -68,7 +78,7 @@ contract SubscriberWallet is owned { // TODO: make it mortal
         if( now < m_subscriptions[provider].lastCharged + m_subscriptions[provider].frequency) {
             return ERR_ALREADYCHARGED;
         }
-        if( this.balance <= m_subscriptions[provider].amount) {
+        if( this.balance <= rates.convertUsdToWei(m_subscriptions[provider].amount)) {
             return ERR_INSUFFICIENT_BALANCE;
         }
         m_subscriptions[provider].lastCharged = m_subscriptions[provider].lastCharged
